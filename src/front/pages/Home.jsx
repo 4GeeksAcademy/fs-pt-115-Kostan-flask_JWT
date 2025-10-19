@@ -1,52 +1,66 @@
-import React, { useEffect } from "react"
-import rigoImageUrl from "../assets/img/rigo-baby.jpg";
-import useGlobalReducer from "../hooks/useGlobalReducer.jsx";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { signup } from "../services/ApiServices.js";
 
 export const Home = () => {
+  const navigate = useNavigate();
 
-	const { store, dispatch } = useGlobalReducer()
+  const [userData, setUserData] = useState({
+    email: "",
+    password: "",
+  });
 
-	const loadMessage = async () => {
-		try {
-			const backendUrl = import.meta.env.VITE_BACKEND_URL
+  const handleChange = (e) => {
+    setUserData({ ...userData, [e.target.name]: e.target.value });
+  };
 
-			if (!backendUrl) throw new Error("VITE_BACKEND_URL is not defined in .env file")
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await signup(userData);
+      alert("User registered successfully!");
+      navigate("/login");
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
-			const response = await fetch(backendUrl + "/api/hello")
-			const data = await response.json()
+  return (
+    <form className="form mt-5 m-auto" onSubmit={handleSubmit}>
+      <p className="title">Register</p>
+      <p className="message">Signup now and get full access to our app.</p>
 
-			if (response.ok) dispatch({ type: "set_hello", payload: data.message })
+      <label>
+        <input
+          className="input"
+          type="email"
+          name="email"
+          value={userData.email}
+          onChange={handleChange}
+          required
+        />
+        <span>Email</span>
+      </label>
 
-			return data
+      <label>
+        <input
+          className="input"
+          type="password"
+          name="password"
+          value={userData.password}
+          onChange={handleChange}
+          required
+        />
+        <span>Password</span>
+      </label>
 
-		} catch (error) {
-			if (error.message) throw new Error(
-				`Could not fetch the message from the backend.
-				Please check if the backend is running and the backend port is public.`
-			);
-		}
+      <button className="submit" type="submit">
+        Submit
+      </button>
 
-	}
-
-	useEffect(() => {
-		loadMessage()
-	}, [])
-
-	return (
-		<div className="text-center mt-5">
-			<h1 className="display-4">Hello Rigo!!</h1>
-			<p className="lead">
-				<img src={rigoImageUrl} className="img-fluid rounded-circle mb-3" alt="Rigo Baby" />
-			</p>
-			<div className="alert alert-info">
-				{store.message ? (
-					<span>{store.message}</span>
-				) : (
-					<span className="text-danger">
-						Loading message from the backend (make sure your python 🐍 backend is running)...
-					</span>
-				)}
-			</div>
-		</div>
-	);
-}; 
+      <p className="signin">
+        Already have an account? <Link to="/login">Login</Link>
+      </p>
+    </form>
+  );
+};

@@ -6,6 +6,11 @@ from api.models import db, User
 from api.utils import generate_sitemap, APIException
 from flask_cors import CORS
 
+from flask_jwt_extended import create_access_token
+from flask_jwt_extended import get_jwt_identity
+from flask_jwt_extended import jwt_required
+
+
 api = Blueprint('api', __name__)
 
 # Allow CORS requests to this API
@@ -20,3 +25,62 @@ def handle_hello():
     }
 
     return jsonify(response_body), 200
+
+
+@api.route('/signup', methods=['POST'])
+def signup():
+
+    data = request.get_json()
+
+    if not data["email"] or not data["password"]:
+        return jsonify({"msg": "Email and Password are required!"}), 400
+
+    existing_user = db.session.execute(db.select(User).where(
+        User.email == data["email"]
+    )).scalar_one_or_none()
+
+    if existing_user:
+
+        return jsonify({"msg": "Could not register user. Please check your data."}), 400
+
+    new_user = User(email=data["email"])
+    new_user.set_password(data["password"])
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({"msg": "User created successfully!"}), 200
+
+
+@api.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+
+    if not data["email"] or not data["password"]:
+        return jsonify({"msg": "Email and Password are required!"}), 400
+
+    user = db.session.execute(db.select(User).where(
+        User.email == data['email']
+    )).scalar_one_or_none()
+
+    if user is None:
+        return jsonify({"msg": "Invalid email or password"}), 401
+
+    if user.check_password(data["password"]):
+        access_token = create_access_token(identity=str(user.id))
+
+        return jsonify({"msg": "Login success!", "token": access_token}), 200
+    else:
+        return jsonify({"msg": "Invalid email or password"}), 401
+
+
+@api.route('/private', methods=['GET'])
+@jwt_required()
+def private():
+    user_id = get_jwt_identity()
+    user = db.session.get(User, int(user_id))
+
+    if not user:
+
+        return jsonify({"msg": "User not found"}), 404
+
+    return jsonify(user.serialize()), 200
